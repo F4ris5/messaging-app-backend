@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3001;
 
 const io = new Server(server, {
     cors: {
-        origin: "http://f4ris5.github.io/messaging-app-frontend", // frontend port
+        origin: "https://f4ris5.github.io", // frontend port
         methods: ["GET", "POST"]
     }
 });
@@ -16,7 +16,7 @@ const bcrypt = require('bcrypt');
 const cors = require('cors');
 
 const corsOptions = {
-    origin: 'http://f4ris5.github.io/messaging-app-frontend',
+    origin: 'https://f4ris5.github.io',
     optionsSuccessStatus: 200
 };
 
