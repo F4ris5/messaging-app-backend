@@ -1,16 +1,16 @@
-const { Pool } = require('pg');
+// const { Pool } = require('pg');
 
-const pool = new Pool({
-    user: 'postgres',
-    password: 'Farishensem1',
-    host: 'localhost',
-    port: 5432,
-    database: 'postgres'
-});
+// const pool = new Pool({
+//     user: 'postgres',
+//     password: 'Farishensem1',
+//     host: 'localhost',
+//     port: 5432,
+//     database: 'postgres'
+// });
 
-module.exports = {
-    query: (text, params) => pool.query(text, params)
-};
+// module.exports = {
+//     query: (text, params) => pool.query(text, params)
+// };
 
 // const nodemailer = require('nodemailer');
 
@@ -38,3 +38,20 @@ module.exports = {
 //         res.status(500).send('Failed to send email');
 //     }
 // });
+
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  host: process.env.PGHOST,
+  port: process.env.PGPORT, // this will be a string like "5432"
+  database: process.env.PGDATABASE,
+  ssl: {
+    rejectUnauthorized: false // required for Railway PostgreSQL
+  }
+});
+
+module.exports = {
+  query: (text, params) => pool.query(text, params)
+};
