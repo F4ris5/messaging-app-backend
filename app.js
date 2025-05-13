@@ -4,46 +4,45 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
-
-const io = new Server(server, {
-    cors: {
-        origin: "https://f4ris5.github.io", // frontend port
-        methods: ["GET", "POST"]
-    }
-});
 const db = require('./db');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
+app.use(express.json());
+app.use(cors(corsOptions));
+
+const io = new Server(server, {
+    cors: {
+        origin: "https://f4ris5.github.io", // set this to the frontend port
+        methods: ["GET", "POST"]
+    }
+});
 
 const corsOptions = {
-    origin: 'https://f4ris5.github.io',
+    origin: 'https://f4ris5.github.io', // this one too, set to frontend port
     optionsSuccessStatus: 200
 };
 
-app.use(cors(corsOptions));
-const ADMIN_ID = 1;
-// Store connected users' socket IDs
-const connectedUsers = {};
-
-// Socket.IO logic
+// socket.IO logic
 io.on('connection', (socket) => {
     console.log('New socket connection');
 
+    // join a room based on userID
     socket.on('join', (userId) => {
         const roomName = `user_${userId}`;
         socket.join(roomName);
         console.log(`User ${userId} joined room ${roomName}`);
     });
 
-    socket.on('typing', ({ senderId, receiverId }) => {
+    // notifies the receiver that the sender is typing
+    socket.on('typing', ({ senderId, receiverId }) => { 
         const receiverRoom = `user_${receiverId}`;
         io.to(receiverRoom).emit('typing', { senderId });
     });
     
-
+    // message event handler
     socket.on('send_message', async ({ senderId, receiverId, message }) => {
         try {
-            // Save to database
+            // save to database
             await db.query(
                 'INSERT INTO messages (sender_id, receiver_id, content) VALUES ($1, $2, $3)',
                 [senderId, receiverId, message]
@@ -51,10 +50,10 @@ io.on('connection', (socket) => {
 
             const payload = {
                 message,
-                senderId // <-- only this is needed for alignment logic
+                senderId
             };
 
-            // Send to sender and receiver rooms
+            // send to sender and receiver rooms
             io.to(`user_${senderId}`).emit('receive_message', payload);
             io.to(`user_${receiverId}`).emit('receive_message', payload);
 
@@ -64,10 +63,11 @@ io.on('connection', (socket) => {
     });
 });
 
-
+// middleware to parse JSON
 app.get('/messages/:userId', async (req, res) => {
     const userId = parseInt(req.params.userId);
 
+    // validates user
     try {
         const result = await db.query(
             `SELECT * FROM messages 
@@ -82,6 +82,7 @@ app.get('/messages/:userId', async (req, res) => {
     }
 });
 
+// fetches all messages between two users
 app.get('/messages/conversation/:userId/:otherUserId', async (req, res) => {
     const userId = parseInt(req.params.userId);
     const otherUserId = parseInt(req.params.otherUserId);
@@ -101,36 +102,19 @@ app.get('/messages/conversation/:userId/:otherUserId', async (req, res) => {
     }
 });
 
-app.use(express.json());
-
-
-//Shows all users in the database
-app.get('/', async (req, res) => {
-    try {
-        const result = await db.query('SELECT * FROM users');
-        res.json(result.rows);
-    }
-    catch (err) {
-        console.error(err);
-        res.status(500).send('Internal Server Error');
-    }
-});
-
-//Adds a new user to the database
+// adds a new user to the database
 app.post('/addname', async (req, res) => {
     try {
         const { name, password } = req.body;
 
-        // Validate inputs (basic example)
         if (!name || !password) {
             return res.status(400).send('Username and password are required.');
         }
 
-        // Hash the password
+        // password hashing
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // Insert into DB with hashed password
         const result = await db.query(
             'INSERT INTO users(username, password_hash) VALUES($1, $2) RETURNING id, username, created_at',
             [name, hashedPassword]
@@ -143,16 +127,15 @@ app.post('/addname', async (req, res) => {
     }
 });
 
+// login handler
 app.post('/login', async (req, res) => {
     try {
         const { name, password } = req.body;
 
-        // Validate input
         if (!name || !password) {
             return res.status(400).send('Username and password are required.');
         }
 
-        // Look up user in the DB
         const result = await db.query(
             'SELECT * FROM users WHERE username = $1',
             [name]
@@ -164,14 +147,13 @@ app.post('/login', async (req, res) => {
             return res.status(401).send('Invalid username or password.');
         }
 
-        // Compare password with stored hash
+        // compare password with stored hash
         const match = await bcrypt.compare(password, user.password_hash);
 
         if (!match) {
             return res.status(401).send('Invalid username or password.');
         }
 
-        // Password is correct
         res.status(200).json({
             message: 'Login successful',
             user: {
@@ -185,15 +167,5 @@ app.post('/login', async (req, res) => {
         res.status(500).send('Internal Server Error');
     }
 });
-
-//Testing out a post route
-app.post('/welcome', (req,res) => {
-    const {name} = req.body;
-    const {password} = req.body;
-    res.send(`Welcome ${name}. ${password}? Cool password`);
-});
-
-
-
 
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
