@@ -8,7 +8,7 @@ const db = require('./db');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
 app.use(express.json());
-app.use(cors(corsOptions));
+
 
 const io = new Server(server, {
     cors: {
@@ -21,6 +21,8 @@ const corsOptions = {
     origin: 'https://f4ris5.github.io', // this one too, set to frontend port
     optionsSuccessStatus: 200
 };
+
+app.use(cors(corsOptions));
 
 // socket.IO logic
 io.on('connection', (socket) => {
